@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
+const API = "https://cloud-security-scanner.onrender.com";
 function getGradeStyle(grade) {
   const colors = {
     "A+": "var(--green)", "A": "var(--accent)", "B": "var(--yellow)",

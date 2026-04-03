@@ -1,7 +1,6 @@
 import { useState } from "react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
+const API = "https://cloud-security-scanner.onrender.com";
 export default function ScanForm({ onResult }) {
   const [mode, setMode] = useState("single"); // "single" | "bulk"
   const [url, setUrl] = useState("");
