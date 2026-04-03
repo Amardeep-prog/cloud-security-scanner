@@ -49,8 +49,8 @@ def create_app() -> FastAPI:
             "Detect vulnerabilities, misconfigurations, and security gaps in your APIs."
         ),
         version=settings.APP_VERSION,
-        docs_url="/docs" if settings.ENABLE_DOCS else None,
-        redoc_url="/redoc" if settings.ENABLE_DOCS else None,
+        docs_url="/docs",
+        redoc_url="/redoc",
         lifespan=lifespan,
     )
 
