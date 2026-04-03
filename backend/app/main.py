@@ -8,11 +8,11 @@ Author: Cloud Security Scanner Team
 import time
 import uuid
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.openapi.docs import get_swagger_ui_html
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -29,7 +29,6 @@ cw_logger = CloudWatchLogger()
 # ─── Rate Limiter ─────────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown hooks."""
@@ -38,7 +37,6 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("🛑 Cloud Security Scanner shutting down...")
     cw_logger.log_event("APP_SHUTDOWN", {})
-
 
 # ─── App Factory ──────────────────────────────────────────────────────────────
 def create_app() -> FastAPI:
@@ -66,7 +64,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    if settings.TRUSTED_HOSTS:
+    if hasattr(settings, 'TRUSTED_HOSTS') and settings.TRUSTED_HOSTS:
         app.add_middleware(
             TrustedHostMiddleware,
             allowed_hosts=settings.TRUSTED_HOSTS,
@@ -97,20 +95,20 @@ def create_app() -> FastAPI:
 
     # ── Routes ────────────────────────────────────────────────────────────────
     app.include_router(health_routes.router, prefix="/health", tags=["Health"])
-    app.include_router(scan_routes.router,   prefix="/api/v1", tags=["Scanning"])
+    app.include_router(scan_routes.router, prefix="/api/v1", tags=["Scanning"])
     app.include_router(report_routes.router, prefix="/api/v1", tags=["Reports"])
 
     # ── Global Exception Handler ──────────────────────────────────────────────
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
-        cw_logger.log_event("UNHANDLED_EXCEPTION", {"error": str(exc)})
+        request_id = getattr(request.state, "request_id", "unknown")
+        logger.error(f"[{request_id}] Unhandled exception: {exc}", exc_info=True)
+        cw_logger.log_event("UNHANDLED_EXCEPTION", {"error": str(exc), "request_id": request_id})
         return JSONResponse(
             status_code=500,
-            content={"detail": "Internal server error", "request_id": getattr(request.state, "request_id", "unknown")},
+            content={"detail": "Internal server error", "request_id": request_id},
         )
 
     return app
-
 
 app = create_app()
