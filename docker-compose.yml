@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      target: runtime
+    container_name: css-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - CLOUDWATCH_ENABLED=false
+      - DYNAMODB_ENABLED=true
+      - AWS_REGION=us-east-1
+      # Point to local DynamoDB/S3 mocks
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    depends_on:
+      - localstack
+    volumes:
+      - ./backend/app:/app/app  # Hot reload in dev
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level debug
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── React Frontend ────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+    container_name: css-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - api
+
+  # ── LocalStack (AWS services emulation) ──────────────────────────────────────
+  localstack:
+    image: localstack/localstack:3.5
+    container_name: css-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,dynamodb,logs,sns
+      - DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - LOCALSTACK_API_KEY=""
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./infra/localstack-init.sh:/etc/localstack/init/ready.d/init.sh
+
+volumes:
+  localstack_data:
