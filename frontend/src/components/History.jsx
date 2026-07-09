@@ -17,7 +17,7 @@ export default function History({ onSelect, setTab }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
-
+  const [search, setSearch] = useState("");
   const PAGE_SIZE = 10;
 
   const load = useCallback(async () => {
@@ -40,17 +40,12 @@ export default function History({ onSelect, setTab }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleView = async (scanId) => {
-    try {
-      const resp = await fetch(`${API}/api/v1/report/${scanId}`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      onSelect(data);
-      setTab("scan");
-    } catch (e) {
-      alert(`Failed to load report: ${e.message}`);
-    }
-  };
+  const handleView = (scanId) => {
+  window.open(
+    `${API}/api/v1/report/${scanId}`,
+    "_blank"
+  );
+};
 
   const handleDelete = async (scanId) => {
     if (!confirm("Delete this report?")) return;
@@ -66,8 +61,42 @@ export default function History({ onSelect, setTab }) {
     }
   };
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const handleExport = async (scanId) => {
+  try {
+    const response = await fetch(
+      `${API}/api/v1/report/${scanId}`
+    );
 
+    const data = await response.json();
+
+    const blob = new Blob(
+      [JSON.stringify(data, null, 2)],
+      { type: "application/json" }
+    );
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report-${scanId}.json`;
+
+    document.body.appendChild(a);
+    a.click();
+
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+const filteredItems = items.filter((item) =>
+  item.url.toLowerCase().includes(search.toLowerCase())
+);
+
+const totalPages = Math.ceil(total / PAGE_SIZE);
   return (
     <div className="fade-in">
       <div className="card">
@@ -105,6 +134,14 @@ export default function History({ onSelect, setTab }) {
         ) : (
           <div>
             {/* Table Header */}
+            <div style={{ marginBottom: 16 }}>
+  <input
+    className="input"
+    placeholder="Search URL..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+  />
+</div>
             <div style={{
               display: "grid",
               gridTemplateColumns: "1fr 80px 60px 60px auto",
@@ -120,8 +157,9 @@ export default function History({ onSelect, setTab }) {
               <span>Actions</span>
             </div>
 
+
             {/* Rows */}
-            {items.map((item) => (
+            {filteredItems.map((item) => (
               <div key={item.scan_id} style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 80px 60px 60px auto",
@@ -146,6 +184,7 @@ export default function History({ onSelect, setTab }) {
                     {item.scan_id.slice(0, 8)} · {new Date(item.timestamp).toLocaleString()}
                   </div>
                 </div>
+  
 
                 {/* Score */}
                 <div style={{ fontFamily: "var(--mono)", fontSize: 13 }}>
@@ -162,9 +201,18 @@ export default function History({ onSelect, setTab }) {
 
                 {/* Issue count */}
                 <div>
-                  <span style={{ fontFamily: "var(--mono)", fontSize: 13 }}>
-                    {item.issue_count}
-                  </span>
+                  <span
+  style={{
+    color:
+      item.critical_count > 0
+        ? "#ff4d4f"
+        : item.issue_count > 5
+        ? "#faad14"
+        : "#52c41a",
+  }}
+>
+  {item.issue_count}
+</span>
                   {item.critical_count > 0 && (
                     <span style={{ marginLeft: 4, fontSize: 10, color: "var(--critical)", fontFamily: "var(--mono)" }}>
                       ({item.critical_count}!)
@@ -175,12 +223,16 @@ export default function History({ onSelect, setTab }) {
                 {/* Actions */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
-                    className="btn btn-ghost"
-                    style={{ fontSize: 11, padding: "4px 10px" }}
-                    onClick={() => handleView(item.scan_id)}
-                  >
-                    View
-                  </button>
+  className="btn btn-ghost"
+  onClick={() =>
+    window.open(
+      `/report/${item.scan_id}`,
+      "_blank"
+    )
+  }
+>
+  View
+</button>
                   <button
                     className="btn btn-ghost"
                     style={{ fontSize: 11, padding: "4px 10px", color: "var(--red)" }}
@@ -189,9 +241,20 @@ export default function History({ onSelect, setTab }) {
                   >
                     {deleting === item.scan_id ? "…" : "Delete"}
                   </button>
+                  <button
+  className="btn btn-ghost"
+onClick={() =>
+  window.open(
+    `${API}/api/v1/report/${item.scan_id}/pdf`,
+    "_blank"
+  )
+}>
+  Export
+</button>
                 </div>
               </div>
             ))}
+
 
             {/* Pagination */}
             {totalPages > 1 && (

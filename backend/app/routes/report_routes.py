@@ -5,6 +5,9 @@ GET /api/v1/report/{scan_id}  — Fetch individual report
 GET /api/v1/history           — Paginated scan history
 DELETE /api/v1/report/{scan_id} — Delete a report
 """
+import tempfile
+from fastapi.responses import FileResponse
+from app.services.pdf_service import PDFService
 
 from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from slowapi import Limiter
@@ -20,7 +23,33 @@ limiter = Limiter(key_func=get_remote_address)
 
 def get_report_controller() -> ReportController:
     return ReportController()
+@router.get("/report/{scan_id}/pdf")
+async def download_pdf(
+    scan_id: str,
+    controller: ReportController = Depends(get_report_controller),
+):
+    report = await controller.get_report(
+        scan_id,
+        include_presigned=False
+    )
 
+    pdf_service = PDFService()
+
+    pdf_path = tempfile.NamedTemporaryFile(
+        delete=False,
+        suffix=".pdf"
+    ).name
+
+    pdf_service.generate_report(
+        report,
+        pdf_path
+    )
+
+    return FileResponse(
+        path=pdf_path,
+        filename=f"CloudSecScanner_{scan_id}.pdf",
+        media_type="application/pdf",
+    )
 
 @router.get(
     "/report/{scan_id}",
