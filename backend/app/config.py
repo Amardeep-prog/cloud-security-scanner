@@ -25,7 +25,12 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     WORKERS: int = 4
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    ALLOWED_ORIGINS: List[str] = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://cloud-security-frontend.onrender.com",
+    "https://scanner.apisecurityguide.com",
+]
     TRUSTED_HOSTS: List[str] = []
 
     # ── AWS ───────────────────────────────────────────────────────────────────
